@@ -230,14 +230,24 @@ def main():
 
     lamp_ip = args.lamp
 
+    discovery_done = [False]
+
     def on_connect(client, userdata, flags, reason_code, properties):
+        if reason_code != 0:
+            print(f"Connection failed (rc={reason_code})")
+            return
         print(f"Connected to MQTT broker at {args.broker}:{args.port}")
-        publish_discovery(client)
         for section_key in SECTIONS:
             cmd_topic = f"govee/{DEVICE_ID}/{section_key}/set"
             client.subscribe(cmd_topic, qos=1)
-            publish_state(client, section_key)
-        print("Bridge running.")
+        if not discovery_done[0]:
+            publish_discovery(client)
+            for section_key in SECTIONS:
+                publish_state(client, section_key)
+            discovery_done[0] = True
+            print("Bridge running.")
+        else:
+            print("Reconnected.")
         sys.stdout.flush()
 
     def on_message(client, userdata, msg):
@@ -247,8 +257,10 @@ def main():
                 handle_command(client, section_key, msg.payload.decode(), lamp_ip)
                 return
 
+    import hashlib, os
+    unique_suffix = hashlib.md5(os.urandom(8)).hexdigest()[:8]
     client = mqtt.Client(
-        client_id=f"govee-h60b0-bridge",
+        client_id=f"govee-h60b0-{unique_suffix}",
         callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
     )
     client.on_connect = on_connect
