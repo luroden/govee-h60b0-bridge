@@ -1,23 +1,32 @@
-#!/usr/bin/with-contenv bashio
+#!/bin/bash
+set -e
 
-LAMP_IP=$(bashio::config 'lamp_ip')
-
-# Try to get MQTT from services, fall back to defaults
-if bashio::services.available "mqtt"; then
-    MQTT_HOST=$(bashio::services mqtt "host")
-    MQTT_PORT=$(bashio::services mqtt "port")
-    MQTT_USER=$(bashio::services mqtt "username")
-    MQTT_PASS=$(bashio::services mqtt "password")
+# Read add-on options
+OPTIONS_FILE="/data/options.json"
+if [ -f "$OPTIONS_FILE" ]; then
+    LAMP_IP=$(python3 -c "import json; print(json.load(open('$OPTIONS_FILE')).get('lamp_ip', '192.168.7.101'))")
 else
-    MQTT_HOST="core-mosquitto"
-    MQTT_PORT="1883"
-    MQTT_USER=""
-    MQTT_PASS=""
+    LAMP_IP="192.168.7.101"
 fi
 
-bashio::log.info "Starting Govee H60B0 bridge"
-bashio::log.info "Lamp IP: ${LAMP_IP}"
-bashio::log.info "MQTT: ${MQTT_HOST}:${MQTT_PORT}"
+# Try to get MQTT from supervisor API
+if [ -n "$SUPERVISOR_TOKEN" ]; then
+    MQTT_INFO=$(curl -s -H "Authorization: Bearer $SUPERVISOR_TOKEN" http://supervisor/services/mqtt 2>/dev/null || echo "")
+    if echo "$MQTT_INFO" | python3 -c "import sys,json; json.load(sys.stdin)['data']" 2>/dev/null; then
+        MQTT_HOST=$(echo "$MQTT_INFO" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['host'])")
+        MQTT_PORT=$(echo "$MQTT_INFO" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['port'])")
+        MQTT_USER=$(echo "$MQTT_INFO" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['username'])")
+        MQTT_PASS=$(echo "$MQTT_INFO" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['password'])")
+    fi
+fi
+
+# Fallback
+MQTT_HOST="${MQTT_HOST:-core-mosquitto}"
+MQTT_PORT="${MQTT_PORT:-1883}"
+
+echo "Starting Govee H60B0 bridge"
+echo "Lamp IP: ${LAMP_IP}"
+echo "MQTT: ${MQTT_HOST}:${MQTT_PORT}"
 
 ARGS="--lamp ${LAMP_IP} --broker ${MQTT_HOST} --port ${MQTT_PORT}"
 if [ -n "${MQTT_USER}" ]; then
