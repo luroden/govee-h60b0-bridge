@@ -1,8 +1,7 @@
 name: "Govee H60B0 Section Control"
 description: "Per-section control (top/side/bottom) for the Govee H60B0 Uplighter Floor Lamp via LAN"
-version: "1.0.3"
+version: "1.1.0"
 slug: "govee_h60b0_bridge"
-init: false
 url: "https://github.com/luroden/govee-h60b0-bridge"
 arch:
   - aarch64
@@ -10,11 +9,18 @@ arch:
   - armhf
   - armv7
   - i386
+init: false
 startup: application
 boot: auto
-map:
-  - config:rw
 options:
   lamp_ip: "192.168.7.101"
+  mqtt_host: "core-mosquitto"
+  mqtt_port: 1883
+  mqtt_user: ""
+  mqtt_pass: ""
 schema:
   lamp_ip: str
+  mqtt_host: str
+  mqtt_port: int
+  mqtt_user: str
+  mqtt_pass: str
